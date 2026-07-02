@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local environment
+.env
+
+# Legacy backups
+_old/
+
+# Runtime output folders (keep placeholders tracked)
+dfg/*
+!dfg/.gitkeep
+logs/*
+!logs/.gitkeep
+models/*
+!models/.gitkeep
+
+# macOS
+.DS_Store

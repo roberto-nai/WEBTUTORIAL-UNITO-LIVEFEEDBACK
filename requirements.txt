@@ -1,0 +1,10 @@
+flask
+graphviz
+joblib
+ollama
+pandas
+pm4py
+pymysql
+python-dotenv
+sqlalchemy
+xgboost

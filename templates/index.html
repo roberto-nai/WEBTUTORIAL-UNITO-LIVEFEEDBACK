@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Live Feedback</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
+    <meta http-equiv="refresh" content="{{ refresh_seconds }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f7f7f7; }
+        .dfg-box { background: white; border: 1px solid #ddd; border-radius: 12px; padding: 1rem; overflow: auto; min-height: 240px; display: flex; flex-direction: column; }
+        .dfg-media { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .dfg-box img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+        .metric { font-size: 1.35rem; font-weight: 600; line-height: 1.1; }
+        .small-muted { color: #666; font-size: .9rem; }
+        .feedback-box { font-size: 1.05rem; line-height: 1.45; }
+        .feedback-text { text-align: justify; }
+        .metrics-strip { display: flex; flex-wrap: nowrap; gap: .6rem; overflow-x: auto; padding-bottom: .25rem; }
+        .metric-tile { min-width: 145px; border: 1px solid #ddd; border-radius: 10px; background: #fff; }
+        .metric-tile .card-body { padding: .65rem .75rem; }
+        .metric-sub { color: #666; font-size: .8rem; line-height: 1.2; margin-top: .2rem; }
+        .event-log-card { margin-top: 1rem; }
+        .event-log-table thead th { font-size: .8rem; font-weight: 700; letter-spacing: .02em; text-transform: none; }
+    </style>
+</head>
+<body>
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h3 mb-0">📊 Live Feedback</h1>
+            <div class="small-muted">Session ID: {{ session_id }}</div>
+        </div>
+        <span class="badge text-bg-secondary">Auto-refresh: {{ refresh_seconds }}s</span>
+    </div>
+
+    <h3 class="h5 mb-1">🔍 Your session at a glance</h3>
+    <!-- <p class="small-muted mb-2">A quick summary of events, navigation and interaction metrics.</p> -->
+    <div class="metrics-strip mb-3">
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Events</div><div class="metric">{{ features.n_events }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Pages</div><div class="metric">{{ features.n_pages }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Total)</div><div class="metric">{{ features.n_quiz }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Correct)</div><div class="metric">{{ features.quiz_correct }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Wrong)</div><div class="metric">{{ features.quiz_wrong }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Clicks</div><div class="metric">{{ features.n_clicks }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Double-Clicks</div><div class="metric">{{ features.n_dbclicks }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Cyclomatic complexity</div><div class="metric">{{ features.cyclomatic_complexity }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Backward jumps</div><div class="metric">{{ features.backward_jumps }}</div></div></div>
+        <div class="metric-tile card"><div class="card-body"><div class="small-muted">Total time</div><div class="metric">{{ features.total_time_readable }}</div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="dfg-box">
+                <!-- <h2 class="h5">Current DFG <span class="small-muted">PM4Py</span></h2> -->
+                <h3 class="h5 mb-1">📚 Your learning path</h3>
+                <p class="small-muted mb-2">This diagram shows the pages you have visited so far and the order in which you explored the tutorial.</p>
+                <div class="dfg-media">
+                    {% if dfg_png_url %}
+                        <img alt="PM4Py DFG" src="{{ dfg_png_url }}?t={{ features.n_events }}">
+                    {% else %}
+                        <p class="text-muted">At least two events are required to show the DFG.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card event-log-card">
+                <div class="card-body">
+                    <h3 class="h5 mb-1">📄 Event log</h3>
+                    <p class="small-muted mb-3">Only page entries, page exits, clicks and double-clicks are shown.</p>
+                    {% if event_log %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0 event-log-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Row</th>
+                                        <th scope="col">Page</th>
+                                        <th scope="col">Event</th>
+                                        <th scope="col">Timestamp</th>
+                                        <th scope="col">Duration (mm:ss)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in event_log %}
+                                        <tr>
+                                            <td>{{ item.row }}</td>
+                                            {% if item.show_page %}
+                                                <td rowspan="{{ item.page_rowspan }}">{{ item.page }}</td>
+                                            {% endif %}
+                                            <td>{{ item.event }}</td>
+                                            <td>{{ item.timestamp }}</td>
+                                            {% if item.show_duration %}
+                                                <td rowspan="{{ item.page_rowspan }}">{{ item.duration }}</td>
+                                            {% endif %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mb-0 mt-2">
+                            <strong>Total session duration: {{ event_log_summary.total_duration }}</strong>
+                            | Average per page: {{ event_log_summary.avg_per_page }}
+                            | Median per page: {{ event_log_summary.median_per_page }}
+                        </p>
+                    {% else %}
+                        <p class="text-muted mb-0">No matching events were found for this session.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card event-log-card">
+                <div class="card-body">
+                    <h3 class="h5 mb-1">📋 Quiz results</h3>
+                    {% if quiz_results %}
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm align-middle mb-0 event-log-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Row</th>
+                                        <th scope="col">Page</th>
+                                        <th scope="col">Answer</th>
+                                        <th scope="col">Result</th>
+                                        <th scope="col">Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in quiz_results %}
+                                        <tr>
+                                            <td>{{ item.row }}</td>
+                                            <td>{{ item.page }}</td>
+                                            <td>{{ item.answer }}</td>
+                                            <td>{% if item.result == "Correct" %}🟢{% else %}🔴{% endif %} {{ item.result }}</td>
+                                            <td>{{ item.timestamp }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mb-0">
+                            <strong>Total quizzes completed: {{ quiz_summary.total }}</strong>
+                            | 🟢 Correct: {{ quiz_summary.correct }} ({{ "%.1f"|format(quiz_summary.correct_pct) }}%)
+                            | 🔴 Wrong: {{ quiz_summary.wrong }} ({{ "%.1f"|format(quiz_summary.wrong_pct) }}%)
+                        </p>
+                    {% else %}
+                        <p class="text-muted mb-0">No quiz answers were found for this session.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h2 class="h5">🤖 Learning Progress</h2>
+
+                    <p class="small-muted mb-2">
+                        Current prediction based on your learning path
+                    </p>
+
+                    {% if prediction.status == "ready" %}
+
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            <tr>
+                                <td>🔴 Low (&lt; 0.5)</td>
+                                <td class="text-end">
+                                    {{ "%.0f"|format(prediction.probabilities.Low * 100) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>🟡 Medium (0.5 – 0.8)</td>
+                                <td class="text-end">
+                                    {{ "%.0f"|format(prediction.probabilities.Medium * 100) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>🟢 High (&gt; 0.8)</td>
+                                <td class="text-end">
+                                    {{ "%.0f"|format(prediction.probabilities.High * 100) }}%
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-body feedback-box">
+                    <h2 class="h5">💬 Process-aware feedback</h2>
+                    {% if llm.feedback_intent %}
+                        <div class="small-muted mb-2">Feedback intent: <strong>{{ llm.feedback_intent }}</strong></div>
+                    {% endif %}
+                    <p class="feedback-text">{{ llm.text|replace('. ', '.<br> ')|replace('.\n', '.<br>\n')|safe }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

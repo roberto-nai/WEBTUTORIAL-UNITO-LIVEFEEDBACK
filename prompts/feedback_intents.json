@@ -1,0 +1,74 @@
+{
+  "default_predicted_outcome": "Medium",
+  "quiz_rate_levels": [
+    {
+      "label": "Low",
+      "min": 0.0,
+      "max": 0.5,
+      "include_min": true,
+      "include_max": false,
+      "description": "<0.5"
+    },
+    {
+      "label": "Medium",
+      "min": 0.5,
+      "max": 0.8,
+      "include_min": true,
+      "include_max": true,
+      "description": "0.5-0.8"
+    },
+    {
+      "label": "High",
+      "min": 0.8,
+      "max": null,
+      "include_min": false,
+      "include_max": false,
+      "description": ">0.8"
+    }
+  ],
+  "behaviour_thresholds": {
+    "avg_time_per_page_seconds": {
+      "very_short": 30,
+      "adequate": 60,
+      "long": 180
+    },
+    "interaction_per_page": {
+      "low": 2,
+      "high": 8
+    },
+    "events_per_page": {
+      "low": 4,
+      "high": 12
+    },
+    "backward_jumps": {
+      "reflective": 1,
+      "frequent": 3
+    },
+    "cyclomatic_complexity": {
+      "high": 4
+    },
+    "forward_jumps": {
+      "frequent": 2
+    },
+    "coefficient_of_variation": {
+      "irregular": 0.75
+    }
+  },
+  "feedback_intents": {
+    "High": {
+      "intent": "Encouragement",
+      "behavioural_evidence": "Strong engagement and effective learning behaviour, e.g., high quiz rate, adequate time spent on activities, and reflective navigation through backward jumps.",
+      "purpose": "Reinforce positive learning behaviour and motivate the learner to continue."
+    },
+    "Medium": {
+      "intent": "Review",
+      "behavioural_evidence": "Mixed behavioural patterns suggesting partial understanding, e.g., medium quiz rate, irregular time spent on activities, and moderate process complexity.",
+      "purpose": "Recommend revisiting selected learning materials before progressing."
+    },
+    "Low": {
+      "intent": "Warning",
+      "behavioural_evidence": "Behaviour indicating potential learning difficulties, e.g., low quiz rate, very short time spent on activities, and frequent forward/backward jumps.",
+      "purpose": "Alert the learner to potential learning difficulties and encourage corrective actions."
+    }
+  }
+}
