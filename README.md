@@ -29,6 +29,8 @@ Compatibility URL (also accepted):
 http://127.0.0.1:5050/<sessionID>
 ```
 
+See also: [https://github.com/roberto-nai/WEBTUTORIAL-UNITO](https://github.com/roberto-nai/WEBTUTORIAL-UNITO)
+
 ## Environment variables
 
 Create a local `.env` file in the project root (see  `.env.example`), then set your MySQL values:
