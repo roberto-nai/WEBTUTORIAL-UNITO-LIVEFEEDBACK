@@ -69,6 +69,8 @@ OLLAMA_MODEL=llama3.2
   - `process_feedback_prompt_v2.json` - current prompt version.
 - `templates/` - HTML templates for the web UI.
   - `index.html` - main live feedback page.
+- `database/` - SQL schema files used by the application.
+  - `llm_survey.sql` - table definition for feedback rating persistence.
 - `dfg/` - generated DFG PNG files at runtime.
 - `logs/` - exported session CSV files at runtime.
 - `models/` - training dataset and saved XGB artefacts.
@@ -114,3 +116,7 @@ CREATE TABLE `llm_survey` (
 
 - Runtime LLM service: **Ollama**: [https://ollama.com](https://ollama.com)
 - Model: **Llama 3.2-3B**: [https://ollama.com/library/llama3.2](https://ollama.com/library/llama3.2)
+
+## More informations
+
+- Roberto Nai [roberto.nai@unito.it](roberto.nai@unito.it)
