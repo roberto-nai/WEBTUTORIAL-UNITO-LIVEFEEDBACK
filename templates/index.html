@@ -25,7 +25,9 @@
         .rating-stars input:checked ~ label { color: #f5b400; }
         .metrics-shell { width: min(80%, 1320px); margin: 0 0 1rem; }
         .metrics-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; }
+        .metrics-strip + .metrics-strip { margin-top: .75rem; }
         .metric-tile { min-width: 0; border: 1px solid #ddd; border-radius: 14px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05); }
+        .metric-tile-wide { grid-column: span 2; }
         .metric-tile .card-body { padding: .9rem 1rem; }
         .metric-tile .small-muted { text-align: center; display: block; margin-bottom: .35rem; }
         .metric-sub { color: #666; font-size: .8rem; line-height: 1.2; margin-top: .2rem; }
@@ -124,6 +126,7 @@
 
         @media (max-width: 991.98px) {
             .metrics-shell { width: 100%; }
+            .metric-tile-wide { grid-column: span 1; }
             .toggle-bar { flex-wrap: wrap; }
             .workspace-shell,
             .workspace-shell[data-panel="right"] { grid-template-columns: 1fr; }
@@ -154,14 +157,18 @@
         <div class="metrics-strip">
             <div class="metric-tile card"><div class="card-body"><div class="small-muted">Events</div><div class="metric">{{ features.n_events }}</div></div></div>
             <div class="metric-tile card"><div class="card-body"><div class="small-muted">Pages</div><div class="metric">{{ features.n_pages }}</div></div></div>
-            <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Total)</div><div class="metric">{{ features.n_quiz }}</div></div></div>
-            <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Correct)</div><div class="metric">{{ features.quiz_correct }}</div></div></div>
-            <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Wrong)</div><div class="metric">{{ features.quiz_wrong }}</div></div></div>
             <div class="metric-tile card"><div class="card-body"><div class="small-muted">Clicks</div><div class="metric">{{ features.n_clicks }}</div></div></div>
             <div class="metric-tile card"><div class="card-body"><div class="small-muted">Double-Clicks</div><div class="metric">{{ features.n_dbclicks }}</div></div></div>
             <div class="metric-tile card"><div class="card-body"><div class="small-muted">Cyclomatic complexity</div><div class="metric">{{ features.cyclomatic_complexity }}</div></div></div>
             <div class="metric-tile card"><div class="card-body"><div class="small-muted">Backward jumps</div><div class="metric">{{ features.backward_jumps }}</div></div></div>
-            <div class="metric-tile card"><div class="card-body"><div class="small-muted">Total time</div><div class="metric">{{ features.total_time_readable }}</div></div></div>
+            <div class="metric-tile metric-tile-wide card"><div class="card-body"><div class="small-muted">Total time</div><div class="metric">{{ features.total_time_readable }}</div></div></div>
+            <div class="metric-tile metric-tile-wide card"><div class="card-body"><div class="small-muted">Average per page</div><div class="metric">{{ event_log_summary.avg_per_page }}</div></div></div>
+            <div class="metric-tile metric-tile-wide card"><div class="card-body"><div class="small-muted">Median per page</div><div class="metric">{{ event_log_summary.median_per_page }}</div></div></div>
+        </div>
+        <div class="metrics-strip">
+            <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Total)</div><div class="metric">{{ quiz_summary.total }}</div></div></div>
+            <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Correct)</div><div class="metric">{{ quiz_summary.correct }}</div></div></div>
+            <div class="metric-tile card"><div class="card-body"><div class="small-muted">Quiz (Wrong)</div><div class="metric">{{ quiz_summary.wrong }}</div></div></div>
         </div>
     </div>
 
