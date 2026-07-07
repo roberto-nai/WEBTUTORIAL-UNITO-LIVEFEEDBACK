@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
@@ -9,6 +10,9 @@ from graphviz import Source
 from pm4py.algo.discovery.dfg import algorithm as dfg_discovery
 from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.visualization.dfg import visualizer as dfg_visualizer
+
+
+LOGGER = logging.getLogger("app")
 
 
 def calculate_cyclomatic_complexity(df: pd.DataFrame) -> int:
@@ -29,12 +33,21 @@ def calculate_cyclomatic_complexity(df: pd.DataFrame) -> int:
 
 
 def style_start_end_nodes(dot_source: str) -> str:
-    """Make Start/End nodes circular while keeping all other graph styling untouched."""
+    """Apply layout refinements and style Start/End nodes in the rendered DFG."""
     styled_lines = []
     for line in dot_source.splitlines():
         if "->" in line:
             styled_lines.append(line)
             continue
+
+        # Make the graph more linear and readable (left-to-right with extra spacing).
+        if line.strip().startswith("graph ["):
+            if "rankdir=" not in line:
+                line = re.sub(r"\]$", ', rankdir=LR]', line)
+            if "nodesep=" not in line:
+                line = re.sub(r"\]$", ', nodesep="1.0"]', line)
+            if "ranksep=" not in line:
+                line = re.sub(r"\]$", ', ranksep="1.2"]', line)
 
         # PM4Py frequency labels can render as Start (1) / End (1): strip the count.
         line = re.sub(r'label="(Start|End) \(\d+\)"', r'label="\1"', line)
@@ -114,6 +127,9 @@ def create_dfg_png(df: pd.DataFrame, session_id: str, dfg_dir: Path) -> str | No
     png_path = dfg_dir / f"dfg_{safe_id}.png"
 
     styled_source = style_start_end_nodes(gviz.source)
-    Source(styled_source, format="png").render(filename=str(png_path.with_suffix("")), cleanup=True)
-
-    return url_for("serve_dfg", filename=png_path.name)
+    try:
+        Source(styled_source, format="png").render(filename=str(png_path.with_suffix("")), cleanup=True)
+        return url_for("serve_dfg", filename=png_path.name)
+    except Exception:
+        LOGGER.exception("DFG rendering failed for session %s", session_id)
+        return None

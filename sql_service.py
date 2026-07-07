@@ -38,6 +38,12 @@ def read_sql(query: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
         return pd.read_sql_query(text(query), conn, params=params or {})
 
 
+def execute_sql(query: str, params: dict[str, Any] | None = None) -> None:
+    """Execute INSERT/UPDATE/DELETE statements through SQLAlchemy transaction."""
+    with SQLALCHEMY_ENGINE.begin() as conn:
+        conn.execute(text(query), params or {})
+
+
 def format_duration_m_ss(seconds: float | int) -> str:
     total_seconds = max(0, int(round(float(seconds))))
     minutes, remaining_seconds = divmod(total_seconds, 60)
@@ -284,3 +290,98 @@ def get_training_sessions_debug_stats() -> dict[str, int]:
                 "intersection_events_and_quiz_pageName": len(events_sessions.intersection(quiz_distinct_sessions)),
                 "intersection_events_and_quiz_count": len(events_sessions.intersection(quiz_count_sessions)),
         }
+
+
+def get_session_project_id(session_id: str) -> int | None:
+    """Return projectID for the session, if available."""
+    query = """
+    SELECT projectID
+    FROM events
+    WHERE sessionID = :session_id
+      AND projectID IS NOT NULL
+    ORDER BY idEvent ASC
+    LIMIT 1
+    """
+    df = read_sql(query, {"session_id": session_id})
+    if df.empty:
+        return None
+    return int(df.iloc[0]["projectID"])
+
+
+def load_llm_survey_rating(session_id: str) -> int | None:
+    """Return saved feedback usefulness rating for a session, if present."""
+    query = """
+    SELECT rating
+    FROM llm_survey
+    WHERE sessionID = :session_id
+    LIMIT 1
+    """
+    df = read_sql(query, {"session_id": session_id})
+    if df.empty:
+        return None
+    return int(df.iloc[0]["rating"])
+
+
+def upsert_llm_survey_rating(
+    *,
+    session_id: str,
+    project_id: int | None,
+    rating: int,
+    feedback_intent: str,
+    predicted_outcome: str | None,
+    prompt_version: str,
+    model_version: str,
+    feedback_id: str,
+    feedback_hash: str,
+) -> None:
+    """Insert or update feedback usefulness survey data for a session."""
+    query = """
+    INSERT INTO llm_survey (
+        sessionID,
+        projectID,
+        rating,
+        feedbackIntent,
+        predictedOutcome,
+        promptVersion,
+        modelVersion,
+        feedbackID,
+        feedbackHash,
+        lastUpdate
+    ) VALUES (
+        :session_id,
+        :project_id,
+        :rating,
+        :feedback_intent,
+        :predicted_outcome,
+        :prompt_version,
+        :model_version,
+        :feedback_id,
+        :feedback_hash,
+        CURRENT_TIMESTAMP
+    )
+    ON DUPLICATE KEY UPDATE
+        projectID = VALUES(projectID),
+        rating = VALUES(rating),
+        feedbackIntent = VALUES(feedbackIntent),
+        predictedOutcome = VALUES(predictedOutcome),
+        promptVersion = VALUES(promptVersion),
+        modelVersion = VALUES(modelVersion),
+        feedbackID = VALUES(feedbackID),
+        feedbackHash = VALUES(feedbackHash),
+        lastUpdate = CURRENT_TIMESTAMP
+    """
+
+    execute_sql(
+        query,
+        {
+            "session_id": session_id,
+            "project_id": project_id,
+            "rating": rating,
+            "feedback_intent": feedback_intent,
+            "predicted_outcome": predicted_outcome,
+            "prompt_version": prompt_version,
+            "model_version": model_version,
+            "feedback_id": feedback_id,
+            "feedback_hash": feedback_hash,
+        },
+    )

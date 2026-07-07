@@ -11,8 +11,8 @@ Use **Python 3.11**.
 It is recommended to create and activate a virtual environment before installing dependencies:
 
 ```bash
-python3.11 -m venv .venv311
-source .venv311/bin/activate
+python3.11 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
@@ -43,6 +43,14 @@ MYSQL_PASSWORD=your_mysql_password
 MYSQL_DATABASE=your_db_name
 ```
 
+Optional:
+
+```env
+HELP_REFRESH_SECONDS=30
+ENABLE_LOCAL_LLM=1
+OLLAMA_MODEL=llama3.2
+```
+
 ## Project structure
 
 - `app.py` - Flask app and web routes.
@@ -69,10 +77,16 @@ MYSQL_DATABASE=your_db_name
 
 - Live session visualisation in the browser
 - PM4Py DFG from `events` and `quiz`
-- Event log and quiz summary tables
+- Event log table with default preview and expand/collapse controls
 - Basic live metrics
-- XGB placeholder after the first 3 pages
-- LLM feedback placeholder
+- XGB prediction after the first 3 pages
+- Process-aware LLM feedback (cached and sanitised)
+- Feedback usefulness survey (1-5 stars) stored in `llm_survey`
+- Generic error page with detailed traces logged in `app.log`
+
+## Notes
+
+- Event log preview rows are controlled server-side by `EVENT_LOG_PREVIEW_ROWS` in `app.py`.
 
 ## LLM used
 

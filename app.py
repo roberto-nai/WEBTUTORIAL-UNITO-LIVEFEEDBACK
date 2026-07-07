@@ -6,39 +6,79 @@
 """
 from __future__ import annotations
 
+import hashlib
+import logging
 import os
+from logging.handlers import RotatingFileHandler
 from statistics import median
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from flask import Flask, jsonify, redirect, render_template, send_from_directory, url_for
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, url_for
+from werkzeug.exceptions import HTTPException
 
-from llm_service import generate_llm_feedback
+from llm_service import OLLAMA_MODEL, PROMPT_PATH, generate_llm_feedback
 from log_service import calculate_cyclomatic_complexity, create_dfg_png, export_session_event_log_csv
 from ml_service import add_quiz_features, build_prefix_quiz, extract_basic_features, run_xgb_prediction, train_xgb_model
 from sql_service import (
     get_training_sessions_debug_stats,
+    load_llm_survey_rating,
     load_interaction_features,
     load_session_event_log,
     load_session_events,
     load_session_quiz,
+    upsert_llm_survey_rating,
 )
 
 
 BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ID = 2
+EVENT_LOG_PREVIEW_ROWS = 10
 
 REFRESH_SECONDS = int(os.getenv("HELP_REFRESH_SECONDS", "30"))
+APP_DEBUG = int(os.getenv("FLASK_DEBUG", "0")) == 1
 
 app = Flask(
     __name__,
     template_folder=str(BASE_DIR / "templates"),
     static_folder=str(BASE_DIR / "static"),
 )
+app.config["PROPAGATE_EXCEPTIONS"] = False
 
 DFG_DIR = BASE_DIR / "dfg"
 DFG_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR = BASE_DIR / "logs"
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
+APP_LOG_PATH = BASE_DIR / "app.log"
+
+
+def configure_app_logging() -> None:
+    """Write runtime errors and stack traces to app.log."""
+    handler_already_configured = any(
+        isinstance(handler, RotatingFileHandler)
+        and getattr(handler, "baseFilename", "") == str(APP_LOG_PATH)
+        for handler in app.logger.handlers
+    )
+    if handler_already_configured:
+        return
+
+    file_handler = RotatingFileHandler(
+        APP_LOG_PATH,
+        maxBytes=2_000_000,
+        backupCount=3,
+        encoding="utf-8",
+    )
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+    )
+
+    app.logger.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+
+
+configure_app_logging()
 
 
 def format_seconds(seconds: int) -> str:
@@ -66,6 +106,16 @@ def parse_m_ss_to_seconds(value: str) -> int:
     except ValueError:
         return 0
     return max(0, minutes * 60 + seconds)
+
+
+def normalise_feedback_intent(intent: str | None) -> str:
+    """Map UI/LLM intent labels to llm_survey enum values."""
+    raw = (intent or "").strip().lower()
+    if raw.startswith("encouragement"):
+        return "Encouragement"
+    if raw.startswith("warning"):
+        return "Warning"
+    return "Review"
 
 
 def build_live_help_payload(session_id: str) -> dict[str, Any]:
@@ -142,6 +192,7 @@ def build_live_help_payload(session_id: str) -> dict[str, Any]:
 
     prediction = run_xgb_prediction(features)
     llm = generate_llm_feedback(features, prediction, df)
+    feedback_rating = load_llm_survey_rating(session_id)
     dfg_png_url = create_dfg_png(df, session_id, DFG_DIR)
     latest_events = [] if df.empty else df.tail(10)["activity"].tolist()
 
@@ -155,6 +206,7 @@ def build_live_help_payload(session_id: str) -> dict[str, Any]:
         "event_log_summary": event_log_summary,
         "quiz_results": quiz_results,
         "quiz_summary": quiz_summary,
+        "feedback_rating": feedback_rating,
         "latest_events": latest_events,
     }
 
@@ -186,9 +238,42 @@ def live_help(session_id: str):
         event_log_summary=payload["event_log_summary"],
         quiz_results=payload["quiz_results"],
         quiz_summary=payload["quiz_summary"],
+        feedback_rating=payload["feedback_rating"],
+        rating_saved=request.args.get("rating_saved") == "1",
+        rating_invalid=request.args.get("rating_invalid") == "1",
         latest_events=payload["latest_events"],
+        event_log_preview_rows=EVENT_LOG_PREVIEW_ROWS,
         refresh_seconds=REFRESH_SECONDS,
     )
+
+
+@app.route("/live_help/<session_id>/feedback_rating", methods=["POST"])
+def save_feedback_rating(session_id: str):
+    rating_raw = (request.form.get("rating") or "").strip()
+    if not rating_raw.isdigit():
+        return redirect(url_for("live_help", session_id=session_id, rating_invalid=1, _anchor="feedback-survey"))
+
+    rating = int(rating_raw)
+    if rating < 1 or rating > 5:
+        return redirect(url_for("live_help", session_id=session_id, rating_invalid=1, _anchor="feedback-survey"))
+
+    payload = build_live_help_payload(session_id)
+    llm_payload = payload.get("llm") or {}
+    llm_text = str(llm_payload.get("text") or "")
+
+    upsert_llm_survey_rating(
+        session_id=session_id,
+        project_id=PROJECT_ID,
+        rating=rating,
+        feedback_intent=normalise_feedback_intent(llm_payload.get("feedback_intent")),
+        predicted_outcome=llm_payload.get("predicted_outcome"),
+        prompt_version=PROMPT_PATH.stem,
+        model_version=OLLAMA_MODEL,
+        feedback_id=uuid4().hex,
+        feedback_hash=hashlib.sha256(llm_text.encode("utf-8")).hexdigest(),
+    )
+
+    return redirect(url_for("live_help", session_id=session_id, rating_saved=1, _anchor="feedback-survey"))
 
 @app.route("/live-help/<session_id>")
 def live_help_legacy(session_id: str):
@@ -227,5 +312,20 @@ def debug_training_sessions():
     return jsonify(get_training_sessions_debug_stats())
 
 
+@app.errorhandler(Exception)
+def handle_unexpected_error(exc: Exception):
+    """Show a generic message to users and log full details to app.log."""
+    if isinstance(exc, HTTPException):
+        return exc
+
+    error_type = f"{exc.__class__.__module__}.{exc.__class__.__name__}"
+    app.logger.exception("Unhandled exception on %s", request.path)
+
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Internal server error", "details": f"# {error_type}"}), 500
+
+    return render_template("error.html", error_type=error_type), 500
+
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5050, debug=True)
+    app.run(host="127.0.0.1", port=5050, debug=APP_DEBUG)

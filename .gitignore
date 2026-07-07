@@ -18,3 +18,6 @@ models/*
 
 # macOS
 .DS_Store
+
+# Runtime application log
+app.log

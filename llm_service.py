@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,24 @@ def _build_feedback_signature(
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _sanitize_feedback_text(text: str) -> str:
+    """Remove redundant lead-in phrases already implied by the UI section title."""
+    cleaned = (text or "").strip()
+    lead_in_patterns = [
+        r"^here(?:'s| is) your personalised feedback\s*[:\-]\s*",
+        r"^here(?:'s| is) your personali[sz]ed feedback\s*[:\-]\s*",
+        r"^here(?:'s| is) some personalised feedback\s*[:\-]\s*",
+        r"^here(?:'s| is) some personali[sz]ed feedback\s*[:\-]\s*",
+        r"^personalised feedback\s*[:\-]\s*",
+        r"^personali[sz]ed feedback\s*[:\-]\s*",
+    ]
+
+    for pattern in lead_in_patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE).strip()
+
+    return cleaned
 
 
 def generate_process_aware_feedback(
@@ -107,7 +126,7 @@ def generate_process_aware_feedback(
 
         result = {
             "status": "ready",
-            "text": response["message"]["content"].strip(),
+            "text": _sanitize_feedback_text(response["message"]["content"]),
             "feedback_intent": feedback_context.get("feedback_intent"),
             "predicted_outcome": feedback_context.get("predicted_outcome"),
             "behaviour_summary": feedback_context,
@@ -119,15 +138,13 @@ def generate_process_aware_feedback(
         return result
 
     except Exception as exc:
-        result = {
+        return {
             "status": "error",
             "text": f"Local LLM error: {exc}",
             "feedback_intent": feedback_context.get("feedback_intent"),
             "predicted_outcome": feedback_context.get("predicted_outcome"),
             "behaviour_summary": feedback_context,
         }
-        _FEEDBACK_CACHE[signature] = dict(result)
-        return result
 
 
 def generate_llm_feedback(
