@@ -314,6 +314,7 @@ def load_llm_survey_rating(session_id: str) -> int | None:
     SELECT rating
     FROM llm_survey
     WHERE sessionID = :session_id
+    ORDER BY feedbackID DESC, lastUpdate DESC
     LIMIT 1
     """
     df = read_sql(query, {"session_id": session_id})
@@ -331,10 +332,9 @@ def upsert_llm_survey_rating(
     predicted_outcome: str | None,
     prompt_version: str,
     model_version: str,
-    feedback_id: str,
     feedback_hash: str,
 ) -> None:
-    """Insert or update feedback usefulness survey data for a session."""
+    """Insert feedback usefulness survey data for a session."""
     query = """
     INSERT INTO llm_survey (
         sessionID,
@@ -344,7 +344,6 @@ def upsert_llm_survey_rating(
         predictedOutcome,
         promptVersion,
         modelVersion,
-        feedbackID,
         feedbackHash,
         lastUpdate
     ) VALUES (
@@ -355,20 +354,9 @@ def upsert_llm_survey_rating(
         :predicted_outcome,
         :prompt_version,
         :model_version,
-        :feedback_id,
         :feedback_hash,
         CURRENT_TIMESTAMP
     )
-    ON DUPLICATE KEY UPDATE
-        projectID = VALUES(projectID),
-        rating = VALUES(rating),
-        feedbackIntent = VALUES(feedbackIntent),
-        predictedOutcome = VALUES(predictedOutcome),
-        promptVersion = VALUES(promptVersion),
-        modelVersion = VALUES(modelVersion),
-        feedbackID = VALUES(feedbackID),
-        feedbackHash = VALUES(feedbackHash),
-        lastUpdate = CURRENT_TIMESTAMP
     """
 
     execute_sql(
@@ -381,7 +369,6 @@ def upsert_llm_survey_rating(
             "predicted_outcome": predicted_outcome,
             "prompt_version": prompt_version,
             "model_version": model_version,
-            "feedback_id": feedback_id,
             "feedback_hash": feedback_hash,
         },
     )

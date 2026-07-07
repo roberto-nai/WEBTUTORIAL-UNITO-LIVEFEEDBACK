@@ -13,7 +13,6 @@ from logging.handlers import RotatingFileHandler
 from statistics import median
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, url_for
 from werkzeug.exceptions import HTTPException
@@ -269,7 +268,6 @@ def save_feedback_rating(session_id: str):
         predicted_outcome=llm_payload.get("predicted_outcome"),
         prompt_version=PROMPT_PATH.stem,
         model_version=OLLAMA_MODEL,
-        feedback_id=uuid4().hex,
         feedback_hash=hashlib.sha256(llm_text.encode("utf-8")).hexdigest(),
     )
 
