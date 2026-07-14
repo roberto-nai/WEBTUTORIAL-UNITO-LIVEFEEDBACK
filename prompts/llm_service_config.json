@@ -1,0 +1,16 @@
+{
+  "config_1": {
+    "model": "llama3.2",
+    "options": {
+      "temperature": 0.1,
+      "top_p": 0.8,
+      "top_k": 20,
+      "min_p": 0.05,
+      "repeat_penalty": 1.1,
+      "repeat_last_n": 64,
+      "seed": 42,
+      "num_ctx": 4096,
+      "num_predict": 180
+    }
+  }
+}

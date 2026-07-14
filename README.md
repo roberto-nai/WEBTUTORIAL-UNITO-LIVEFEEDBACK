@@ -48,7 +48,32 @@ Optional:
 ```env
 HELP_REFRESH_SECONDS=30
 ENABLE_LOCAL_LLM=1
-OLLAMA_MODEL=llama3.2
+```
+
+## LLM configuration
+
+The Ollama model and its generation parameters are configured in
+`prompts/llm_service_config.json`. Each configuration is identified by a key;
+the active key is selected by the `LLM_CONFIG_NAME` constant in
+`llm_service.py` (currently `config_1`).
+
+```json
+{
+  "config_1": {
+    "model": "llama3.2",
+    "options": {
+      "temperature": 0.1,
+      "top_p": 0.8,
+      "top_k": 20,
+      "min_p": 0.05,
+      "repeat_penalty": 1.1,
+      "repeat_last_n": 64,
+      "seed": 42,
+      "num_ctx": 4096,
+      "num_predict": 180
+    }
+  }
+}
 ```
 
 ## Project structure
@@ -65,6 +90,7 @@ OLLAMA_MODEL=llama3.2
 - `.env.example` - example environment configuration.
 - `prompts/` - prompt templates and feedback intent definitions.
   - `feedback_intents.json` - feedback intent catalogue.
+  - `llm_service_config.json` - Ollama model and generation parameters.
   - `process_feedback_prompt_v1.json` - first prompt version.
   - `process_feedback_prompt_v2.json` - current prompt version.
 - `templates/` - HTML templates for the web UI.

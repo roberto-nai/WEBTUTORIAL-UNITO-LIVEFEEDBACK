@@ -14,9 +14,27 @@ from feedback_strategy import build_feedback_context
 
 
 BASE_DIR = Path(__file__).resolve().parent
-ENABLE_LOCAL_LLM = int(os.getenv("ENABLE_LOCAL_LLM", "1"))
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+ENABLE_LOCAL_LLM = int(os.getenv("ENABLE_LOCAL_LLM", "0"))
 PROMPT_PATH = BASE_DIR / "prompts" / "process_feedback_prompt_v2.json"
+LLM_CONFIG_PATH = BASE_DIR / "prompts" / "llm_service_config.json"
+LLM_CONFIG_NAME = "config_1"
+
+
+def load_llm_config(config_path: Path, config_name: str) -> dict[str, Any]:
+    with config_path.open("r", encoding="utf-8") as f:
+        configurations = json.load(f)
+
+    try:
+        return configurations[config_name]
+    except KeyError as exc:
+        raise KeyError(
+            f"LLM configuration '{config_name}' not found in {config_path}"
+        ) from exc
+
+
+LLM_CONFIG = load_llm_config(LLM_CONFIG_PATH, LLM_CONFIG_NAME)
+OLLAMA_MODEL = LLM_CONFIG["model"]
+OLLAMA_OPTIONS = LLM_CONFIG["options"]
 
 # Reuse the exact same feedback while the input signal is unchanged.
 _FEEDBACK_CACHE: dict[str, dict[str, Any]] = {}
@@ -33,9 +51,11 @@ def _build_feedback_signature(
     feedback_context: dict[str, Any],
     visited_pages: list[str],
     model: str,
+    options: dict[str, Any],
 ) -> str:
     payload = {
         "model": model,
+        "options": options,
         "feedback_context": feedback_context,
         "visited_pages": visited_pages,
     }
@@ -66,8 +86,8 @@ def generate_process_aware_feedback(
     feedback_context: dict[str, Any],
     visited_pages: list[str],
     prompt_path: Path,
-    model: str = "llama3.2",
-    temperature: float = 0.1,
+    model: str,
+    options: dict[str, Any],
     enabled: bool = False,
 ) -> dict[str, Any]:
 
@@ -75,6 +95,7 @@ def generate_process_aware_feedback(
         feedback_context=feedback_context,
         visited_pages=visited_pages,
         model=model,
+        options=options,
     )
 
     cached_feedback = _FEEDBACK_CACHE.get(signature)
@@ -117,11 +138,7 @@ def generate_process_aware_feedback(
                     "content": user_prompt,
                 },
             ],
-            options={
-                "temperature": temperature,
-                "top_p": 0.1,
-                "num_predict": 180,
-            },
+            options=options,
         )
 
         result = {
@@ -170,6 +187,6 @@ def generate_llm_feedback(
         visited_pages=visited_pages,
         prompt_path=PROMPT_PATH,
         model=OLLAMA_MODEL,
-        temperature=0.0,
+        options=OLLAMA_OPTIONS,
         enabled=ENABLE_LOCAL_LLM == 1,
     )
